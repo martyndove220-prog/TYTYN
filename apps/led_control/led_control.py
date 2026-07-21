@@ -58,8 +58,43 @@ def led_test_sequence():
     cp.log('LED test sequence complete.')
 
 
+def update_leds_from_status(previous):
+    """Poll router status and mirror it onto the LEDs. Returns the new state dict.
+
+    - modem_green / modem_red: WAN connection state.
+    - signal_0..3: router's own signal-strength-LED decision (all four bars
+      together, since status/signal_strength_leds is a single on/off value).
+    - wifi: WLAN enabled state.
+    """
+    current = {}
+
+    connected = cp.get('status/wan/connection_state') == 'connected'
+    current['connected'] = connected
+    if previous.get('connected') != connected:
+        set_led('modem_green', connected)
+        set_led('modem_red', not connected)
+
+    signal_on = cp.get('status/signal_strength_leds') == 'on'
+    current['signal_on'] = signal_on
+    if previous.get('signal_on') != signal_on:
+        for name in ('signal_0', 'signal_1', 'signal_2', 'signal_3'):
+            set_led(name, signal_on)
+
+    wifi_enabled = bool(cp.get('control/wlan/enabled'))
+    current['wifi_enabled'] = wifi_enabled
+    if previous.get('wifi_enabled') != wifi_enabled:
+        set_led('wifi', wifi_enabled)
+
+    return current
+
+
 cp.log('Starting led_control...')
 led_test_sequence()
-cp.log('led_control idle.')
+
+state = {}
 while True:
-    time.sleep(60)
+    try:
+        state = update_leds_from_status(state)
+    except Exception as e:
+        cp.log(f'Error updating LEDs: {e}')
+    time.sleep(5)

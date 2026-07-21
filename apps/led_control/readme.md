@@ -8,9 +8,22 @@ through the NCOS config store (`control/gpio/<PIN>`).
 The R1900 exposes each physical LED as a named GPIO pin, readable at
 `status/gpio/<PIN>` and writable at `control/gpio/<PIN>` (0 = off, 1 = on).
 `led_control.py` maps friendly names to those pins and provides helpers to
-read/set them. On start, it runs a one-shot test sequence that flashes each
-mapped LED for half a second (in turn) so you can confirm GPIO control is
-working, then it idles.
+read/set them.
+
+On start, it runs a one-shot test sequence that flashes each mapped LED for
+half a second (in turn) so you can confirm GPIO control is working. It then
+polls the router every 5 seconds and mirrors real router state onto the
+LEDs, only writing a pin when its underlying state actually changes:
+
+| LED(s)                        | Driven by                          | Behavior                              |
+|--------------------------------|-------------------------------------|----------------------------------------|
+| `modem_green` / `modem_red`    | `status/wan/connection_state`      | Green when connected, red when not     |
+| `signal_0`–`signal_3`          | `status/signal_strength_leds`      | All four on/off together (router's own signal-LED decision) |
+| `wifi`                          | `control/wlan/enabled`             | On when WLAN is enabled                |
+
+`bluetooth`, `modem_5g_green`, and `attention_red` are mapped but not driven
+automatically — call `set_led()` directly for those, or add your own
+condition in `update_leds_from_status()`.
 
 ## LED Pin Map (R1900)
 
